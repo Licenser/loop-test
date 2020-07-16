@@ -1,7 +1,7 @@
+use async_channel::{bounded, Sender, TrySendError};
 use async_std::stream::Fuse;
 use async_std::stream::Stream;
 use async_std::stream::StreamExt;
-use async_std::sync::{self, channel, TrySendError};
 use async_std::task;
 use core::pin::Pin;
 use core::task::{Context, Poll};
@@ -9,14 +9,14 @@ use pin_project_lite::pin_project;
 use std::fmt;
 
 pub struct TrySender<M: Send> {
-    addr: sync::Sender<M>,
+    addr: Sender<M>,
     pending: Vec<M>,
     pending2: Vec<M>,
 }
 
 impl<M: Send> std::fmt::Debug for TrySender<M>
 where
-    sync::Sender<M>: std::fmt::Debug,
+    Sender<M>: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.addr)
@@ -33,8 +33,8 @@ impl<M: Send> Clone for TrySender<M> {
     }
 }
 
-impl<M: Send> From<sync::Sender<M>> for TrySender<M> {
-    fn from(addr: sync::Sender<M>) -> Self {
+impl<M: Send> From<Sender<M>> for TrySender<M> {
+    fn from(addr: Sender<M>) -> Self {
         Self {
             addr,
             pending: Vec::new(),
@@ -141,15 +141,15 @@ where
 
 #[async_std::main]
 async fn main() {
-    let (f_tx, f_rx) = channel(8);
+    let (f_tx, f_rx) = bounded(8);
     let mut f_tx = TrySender::from(f_tx).clone();
-    let (r_tx, r_rx) = channel(128);
-    let (on_tx, on_rx) = channel(128);
-    let (off_tx, off_rx) = channel(128);
+    let (r_tx, r_rx) = bounded(128);
+    let (on_tx, on_rx) = bounded(128);
+    let (off_tx, off_rx) = bounded(128);
     task::spawn(async move {
         loop {
             if let Ok(m) = off_rx.try_recv() {
-                r_tx.send(m).await
+                r_tx.send(m).await;
             }
         }
     });
@@ -167,7 +167,7 @@ async fn main() {
             match m {
                 M::F(m) => off_tx.send(m).await,
                 M::R(m) => on_tx.send(m).await,
-            }
+            };
         }
     });
 

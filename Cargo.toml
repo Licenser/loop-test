@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 async-std = {version = "1.6", features = ["unstable", "attributes"]}
+async-channel = "1"
 futures = "*"
 pin-project-lite = "*"
 rand = "*"
